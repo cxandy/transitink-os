@@ -24,6 +24,7 @@
 #include "MtrClient.h"
 #include "ProductConfig.h"
 #include "TflClient.h"
+#include "MyBusClient.h"
 #include "WeatherClient.h"
 #include "WidgetCatalogService.h"
 #include "core/BusEtaCore.h"
@@ -47,11 +48,12 @@ DeviceConfig deviceConfig;
 KmbClient kmbClient;
 CitybusClient citybusClient;
 TflClient tflClient;
+MyBusClient myBusClient;
 GmbClient gmbClient;
 MtrClient mtrClient;
 LightRailClient lightRailClient;
 JourneyTimeClient journeyTimeClient;
-BusProvider busProvider(kmbClient, citybusClient, tflClient);
+BusProvider busProvider(kmbClient, citybusClient, tflClient, myBusClient);
 GmbProvider gmbProvider(gmbClient);
 MtrProvider mtrProvider(mtrClient);
 LightRailProvider lightRailProvider(lightRailClient);

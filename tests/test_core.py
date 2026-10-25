@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BUILD_DIR = ROOT / ".test-build"
 TEST_BIN = BUILD_DIR / "test_core"
 BOARD_PROFILE_TEST_BIN = BUILD_DIR / "test_board_profile"
+AZSMZ_BOARD_PROFILE_TEST_BIN = BUILD_DIR / "test_board_profile_azsmz"
 WIDGET_CONFIG_TEST_BIN = BUILD_DIR / "test_widget_config_core"
 WIDGET_CORE_TEST_BIN = BUILD_DIR / "test_widget_core"
 DISPLAY_TEXT_CORE_TEST_BIN = BUILD_DIR / "test_display_text_core"
@@ -16,6 +17,8 @@ WIDGET_PROVIDER_ROUTER_TEST_BIN = BUILD_DIR / "test_widget_provider_router"
 TRANSIT_CATALOG_TEST_BIN = BUILD_DIR / "test_transit_catalog"
 RAIL_PROVIDERS_TEST_BIN = BUILD_DIR / "test_rail_providers"
 GMB_PROVIDER_TEST_BIN = BUILD_DIR / "test_gmb_provider"
+MYBUS_CORE_TEST_BIN = BUILD_DIR / "test_mybus_core"
+MYBUS_PROVIDER_TEST_BIN = BUILD_DIR / "test_mybus_provider"
 JOURNEY_TIME_XML_TEST_BIN = BUILD_DIR / "test_journey_time_xml"
 JOURNEY_TIME_PROVIDER_TEST_BIN = BUILD_DIR / "test_journey_time_provider"
 JOURNEY_TIME_CLIENT_TEST_BIN = BUILD_DIR / "test_journey_time_client"
@@ -41,6 +44,23 @@ class CoreBehaviorTests(unittest.TestCase):
         ]
         subprocess.run(cmd, cwd=ROOT, check=True)
         subprocess.run([str(BOARD_PROFILE_TEST_BIN)], cwd=ROOT, check=True)
+
+    def test_azsmz_board_profile_cpp_contract(self):
+        BUILD_DIR.mkdir(exist_ok=True)
+        cmd = [
+            "c++",
+            "-std=c++17",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-DTRANSITINK_BOARD_AZSMZ_EPAPER_29=1",
+            "-Iinclude",
+            "test_host/test_board_profile_azsmz.cpp",
+            "-o",
+            str(AZSMZ_BOARD_PROFILE_TEST_BIN),
+        ]
+        subprocess.run(cmd, cwd=ROOT, check=True)
+        subprocess.run([str(AZSMZ_BOARD_PROFILE_TEST_BIN)], cwd=ROOT, check=True)
 
     def test_app_config_native_behaviors(self):
         env = os.environ.copy()
@@ -230,6 +250,47 @@ class CoreBehaviorTests(unittest.TestCase):
         ]
         subprocess.run(cmd, cwd=ROOT, check=True)
         subprocess.run([str(GMB_PROVIDER_TEST_BIN)], cwd=ROOT, check=True)
+
+    def test_mybus_core_cpp_behaviors(self):
+        BUILD_DIR.mkdir(exist_ok=True)
+        cmd = [
+            "c++",
+            "-std=c++17",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-Iinclude",
+            "src/core/MyBusEtaCore.cpp",
+            "test_host/test_mybus_core.cpp",
+            "-o",
+            str(MYBUS_CORE_TEST_BIN),
+        ]
+        subprocess.run(cmd, cwd=ROOT, check=True)
+        subprocess.run([str(MYBUS_CORE_TEST_BIN)], cwd=ROOT, check=True)
+
+    def test_mybus_provider_cpp_behaviors(self):
+        BUILD_DIR.mkdir(exist_ok=True)
+        cmd = [
+            "c++",
+            "-std=c++17",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-Iinclude",
+            "-Itest_native/shims",
+            "-Itest_host/provider_router_shims",
+            "src/core/WidgetCore.cpp",
+            "src/core/UiText.cpp",
+            "src/core/WidgetConfigCore.cpp",
+            "src/core/BusEtaCore.cpp",
+            "src/core/MyBusEtaCore.cpp",
+            "src/providers/BusProvider.cpp",
+            "test_host/test_mybus_provider.cpp",
+            "-o",
+            str(MYBUS_PROVIDER_TEST_BIN),
+        ]
+        subprocess.run(cmd, cwd=ROOT, check=True)
+        subprocess.run([str(MYBUS_PROVIDER_TEST_BIN)], cwd=ROOT, check=True)
 
     def test_rail_provider_invalid_config_precedence(self):
         BUILD_DIR.mkdir(exist_ok=True)

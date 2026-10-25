@@ -23,17 +23,21 @@ constexpr int EINK_WIDTH = transitink::hardware::kBoardProfile.display.width;
 constexpr int EINK_HEIGHT = transitink::hardware::kBoardProfile.display.height;
 constexpr size_t kBytesPerRow = EINK_WIDTH / 8;
 constexpr size_t kFrameBufferSize = kBytesPerRow * EINK_HEIGHT;
-static_assert(EINK_WIDTH == 400 && EINK_HEIGHT == 300,
-              "the current dashboard renderer requires a 400x300 display");
+static_assert((EINK_WIDTH == 400 && EINK_HEIGHT == 300) ||
+                  (EINK_WIDTH == 296 && EINK_HEIGHT == 128),
+              "the current dashboard renderer requires a 400x300 or 296x128 display");
+constexpr bool kCompactPanel = (EINK_WIDTH == 296 && EINK_HEIGHT == 128);
 constexpr int kCustomGlyphWidth = 16;
 constexpr int kCustomGlyphHeight = 16;
 constexpr int kCustomGlyphBaselineOffset = 14;
 constexpr int kMaxPartialRefreshes = 8;
-constexpr int kLaneTextX = 12;
-constexpr int kLaneBaseTextWidth = 204;
-constexpr int kLaneValueAreaX = 224;
-constexpr int kLaneValueWidth = 76;
-constexpr int kLaneValueRightSpacing = 88;
+constexpr int kLaneTextX = kCompactPanel ? 8 : 12;
+constexpr int kLaneBaseTextWidth = kCompactPanel ? 140 : 204;
+constexpr int kLaneValueAreaX = kCompactPanel
+                                   ? (kLaneTextX + kLaneBaseTextWidth + 4)
+                                   : 224;
+constexpr int kLaneValueWidth = kCompactPanel ? 80 : 76;
+constexpr int kLaneValueRightSpacing = kCompactPanel ? 8 : 88;
 constexpr int kLaneRightEdge = EINK_WIDTH - 12;
 constexpr int kLaneColumnGap = 12;
 
@@ -52,26 +56,29 @@ constexpr bool regionFitsPanel(const DisplayRegion& region) {
            region.x + region.w <= EINK_WIDTH && region.y + region.h <= EINK_HEIGHT;
 }
 
-constexpr DisplayRegion kStatusRegion{0, 0, EINK_WIDTH, 42};
+constexpr DisplayRegion kStatusRegion{0, 0, EINK_WIDTH, kCompactPanel ? 16 : 42};
+constexpr int kFirstLaneY = kStatusRegion.y + kStatusRegion.h;
 constexpr DisplayRegion kLaneRegions[transitink::kWidgetsPerPage] = {
-    {0, 42, EINK_WIDTH, 57},
-    {0, 99, EINK_WIDTH, 57},
-    {0, 156, EINK_WIDTH, 57},
-    {0, 213, EINK_WIDTH, 57},
+    {0, kFirstLaneY, EINK_WIDTH, kCompactPanel ? 26 : 57},
+    {0, kFirstLaneY + (kCompactPanel ? 26 : 57), EINK_WIDTH, kCompactPanel ? 26 : 57},
+    {0, kFirstLaneY + 2 * (kCompactPanel ? 26 : 57), EINK_WIDTH, kCompactPanel ? 26 : 57},
+    {0, kFirstLaneY + 3 * (kCompactPanel ? 26 : 57), EINK_WIDTH, kCompactPanel ? 26 : 57},
 };
-constexpr DisplayRegion kFooterRegion{0, 270, EINK_WIDTH, 30};
+constexpr DisplayRegion kFooterRegion{0, kFirstLaneY + 4 * (kCompactPanel ? 26 : 57), EINK_WIDTH,
+                                      kCompactPanel ? 0 : 30};
 static_assert(regionFitsPanel(kStatusRegion), "status region bounds");
 static_assert(regionFitsPanel(kLaneRegions[0]), "lane 0 region bounds");
 static_assert(regionFitsPanel(kLaneRegions[1]), "lane 1 region bounds");
 static_assert(regionFitsPanel(kLaneRegions[2]), "lane 2 region bounds");
 static_assert(regionFitsPanel(kLaneRegions[3]), "lane 3 region bounds");
-static_assert(regionFitsPanel(kFooterRegion), "footer region bounds");
+static_assert(kFooterRegion.h <= EINK_HEIGHT, "footer region bounds");
 static_assert(kStatusRegion.y + kStatusRegion.h == kLaneRegions[0].y, "status/lane boundary");
 static_assert(kLaneRegions[0].y + kLaneRegions[0].h == kLaneRegions[1].y, "lane 0/1 boundary");
 static_assert(kLaneRegions[1].y + kLaneRegions[1].h == kLaneRegions[2].y, "lane 1/2 boundary");
 static_assert(kLaneRegions[2].y + kLaneRegions[2].h == kLaneRegions[3].y, "lane 2/3 boundary");
 static_assert(kLaneRegions[3].y + kLaneRegions[3].h == kFooterRegion.y, "lane/footer boundary");
-static_assert(kFooterRegion.y + kFooterRegion.h == EINK_HEIGHT, "dashboard height");
+static_assert(kFooterRegion.h == 0 || kFooterRegion.y + kFooterRegion.h == EINK_HEIGHT,
+              "dashboard height");
 
 const DisplayRegion& laneRegion(uint8_t slot) {
     return kLaneRegions[slot];
@@ -386,9 +393,10 @@ String currentClockText() {
 
 void drawClockAndStatusBar(uint8_t pageIndex = 0, uint8_t pageCount = 1) {
     drawStatusBar();
-    drawText(12, 24, currentClockText());
+    const int clockY = kStatusRegion.y + (kCompactPanel ? 6 : 24);
+    drawText(12, clockY, currentClockText());
     if (pageCount > 1) {
-        drawText(286, 24,
+        drawText(kCompactPanel ? EINK_WIDTH - 8 : 286, clockY,
                  String(static_cast<unsigned int>(pageIndex) + 1) + "/" +
                      String(pageCount));
     }
@@ -433,8 +441,10 @@ void drawNoWidgetsHint() {
         transitink::uiText(transitink::UiTextId::NoWidgets);
     const String action =
         transitink::uiText(transitink::UiTextId::OpenSettings);
-    drawText(std::max(12, (EINK_WIDTH - measureTextWidth(title)) / 2), 138, title);
-    drawText(std::max(12, (EINK_WIDTH - measureTextWidth(action)) / 2), 174, action);
+    const int noWidgetsTitleY = kCompactPanel ? (kStatusRegion.y + kStatusRegion.h + 8) : 138;
+    const int noWidgetsActionY = kCompactPanel ? (noWidgetsTitleY + 40) : 174;
+    drawText(std::max(12, (EINK_WIDTH - measureTextWidth(title)) / 2), noWidgetsTitleY, title);
+    drawText(std::max(12, (EINK_WIDTH - measureTextWidth(action)) / 2), noWidgetsActionY, action);
 }
 
 void drawWidgetLane(uint8_t slot, const transitink::WidgetSnapshot& snapshot, bool sleeping, bool drawDivider) {
@@ -447,8 +457,8 @@ void drawWidgetLane(uint8_t slot, const transitink::WidgetSnapshot& snapshot, bo
     const int firstValueRight =
         valueLimit == 1U ? kLaneRightEdge
                          : kLaneRightEdge - kLaneValueRightSpacing;
-    const int valueY = region.y + 20;
-    const int contextY = region.y + 42;
+    const int valueY = region.y + (kCompactPanel ? 6 : 20);
+    const int contextY = region.y + (kCompactPanel ? 18 : 42);
     int titleWidth = kLaneBaseTextWidth;
     int subtitleWidth = kLaneBaseTextWidth;
 
@@ -486,7 +496,8 @@ void drawWidgetLane(uint8_t slot, const transitink::WidgetSnapshot& snapshot, bo
     if (snapshot.freshness == transitink::Freshness::Stale && snapshot.valueCount == 0) {
         drawTruncatedText(
             kLaneValueAreaX, valueY,
-            transitink::uiText(transitink::UiTextId::DataUnavailable), 164);
+            transitink::uiText(transitink::UiTextId::DataUnavailable),
+            kLaneRightEdge - kLaneValueAreaX);
         drawLaneDivider(region, drawDivider);
         return;
     }
@@ -498,7 +509,7 @@ void drawWidgetLane(uint8_t slot, const transitink::WidgetSnapshot& snapshot, bo
                                           ? String(transitink::uiText(
                                                 transitink::UiTextId::DataUnavailable))
                                           : String(snapshot.providerMessage.c_str()));
-        drawTruncatedText(kLaneValueAreaX, valueY, message, 164);
+        drawTruncatedText(kLaneValueAreaX, valueY, message, kLaneRightEdge - kLaneValueAreaX);
         drawLaneDivider(region, drawDivider);
         return;
     }
@@ -522,13 +533,16 @@ void drawWidgetLane(uint8_t slot, const transitink::WidgetSnapshot& snapshot, bo
     if (snapshot.freshness == transitink::Freshness::Stale) {
         drawTruncatedText(
             kLaneValueAreaX, contextY,
-            transitink::uiText(transitink::UiTextId::DataExpired), 164);
+            transitink::uiText(transitink::UiTextId::DataExpired),
+            kLaneRightEdge - kLaneValueAreaX);
     }
     drawLaneDivider(region, drawDivider);
 }
 
 void drawWeatherFooter(const WeatherSnapshot& weather) {
-    drawTruncatedText(12, 291, weatherDisplayText(weather), 376);
+    const int footerY = kFooterRegion.h > 0 ? 291 : (EINK_HEIGHT - 16);
+    const int footerWidth = kFooterRegion.h > 0 ? 376 : (EINK_WIDTH - 12);
+    drawTruncatedText(12, footerY, weatherDisplayText(weather), footerWidth);
 }
 
 void copyPartialRegionToPrevious(int x, int y, int w, int h) {
@@ -642,7 +656,8 @@ void EInkDisplay::showConfigMode(const String& networkName, const String& detail
                  FIRMWARE_VERSION);
     drawMultilineText(18, 150, details, 22);
     drawQrCode(258, 92, qrUrl);
-    drawText(18, 260,
+    const int configSaveTextY = kCompactPanel ? 96 : 260;
+    drawText(18, configSaveTextY,
              transitink::uiText(transitink::UiTextId::SaveAndRestart));
     markNonDashboardFrame();
     fullRefresh();

@@ -65,6 +65,8 @@ const char* busOperatorId(BusOperator value) {
             return "ctb";
         case BusOperator::Tfl:
             return "tfl";
+        case BusOperator::MyBus:
+            return "mybus";
     }
     return "";
 }
@@ -78,6 +80,8 @@ bool parseBusOperatorId(const std::string& value, BusOperator& out) {
         out = BusOperator::Citybus;
     } else if (value == "tfl") {
         out = BusOperator::Tfl;
+    } else if (value == "mybus") {
+        out = BusOperator::MyBus;
     } else {
         return false;
     }

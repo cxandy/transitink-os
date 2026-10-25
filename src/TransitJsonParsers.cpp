@@ -651,6 +651,78 @@ bool parseKmbEtaJson(const char* json,
                         "九巴及龍運到站時間資料格式錯誤", records, error);
 }
 
+bool parseMyBusRealtimeJson(const char* json, mybus::RealtimeFrame& frame,
+                            std::string& error) {
+    frame = mybus::RealtimeFrame{};
+    error.clear();
+
+    // 104 回應含多車輛（每輛約 200 B）+ dislist/speedlist + 長浮點經緯度，
+    // 實測 2 KB 池不足；用 8 KB 並保留超限時的明確錯誤。
+    DynamicJsonDocument document(8192);
+    const DeserializationError jsonError = deserializeJson(document, json);
+    if (jsonError) {
+        error = "掌上公交即時資料無法解析";
+        return false;
+    }
+    // CMD=104 的回應可能不含 status 欄位（正常）；缺失視為成功，
+    // 但若存在且不等於 1 / "1" 則為服務端拒絕（如 "-2" 站點不存在）。
+    {
+        JsonVariantConst status = document["status"];
+        if (!status.isNull()) {
+            const bool statusOk =
+                (status.is<int>() && status.as<int>() == 1) ||
+                (status.is<const char*>() && std::string(status.as<const char*>()) == "1");
+            if (!statusOk) {
+                error = "掌上公交即時資料狀態異常";
+                return false;
+            }
+        }
+    }
+
+    if (JsonArrayConst vehicles = document["list"].as<JsonArrayConst>()) {
+        for (JsonObjectConst item : vehicles) {
+            mybus::RealtimeVehicle vehicle;
+            JsonVariantConst rawIndex = item["index"];
+            const int index = rawIndex.is<int>() ? rawIndex.as<int>() : -1;
+            JsonVariantConst distance = item["busToStationNiheDistance"];
+            const double toStation =
+                distance.is<double>() || distance.is<int>()
+                    ? distance.as<double>()
+                    : -1.0;  // 缺失時讓 etaRecordsToStation 決定是否可用
+            JsonVariantConst busNumber = item["busNumber"];
+            vehicle.index = index;
+            vehicle.toStationMeters = toStation;
+            vehicle.busNumber = busNumber.isNull() ? "" : std::string(busNumber.as<const char*>());
+            frame.vehicles.push_back(std::move(vehicle));
+        }
+    }
+    if (JsonArrayConst distances = document["dislist"].as<JsonArrayConst>()) {
+        for (JsonObjectConst item : distances) {
+            JsonVariantConst raw = item["d"];
+            frame.dislist.push_back(raw.is<double>() || raw.is<int>() ? raw.as<double>() : 0.0);
+        }
+    }
+    if (JsonArrayConst speeds = document["speedlist"].as<JsonArrayConst>()) {
+        for (JsonObjectConst item : speeds) {
+            JsonVariantConst raw = item["speed"];
+            double speed = raw.is<double>() || raw.is<int>() ? raw.as<double>() : 0.0;
+            frame.speedlist.push_back(speed);
+        }
+    }
+    if (document["hasReal"].is<int>()) {
+        frame.hasReal = document["hasReal"].as<int>() == 1;
+    } else if (document["hasReal"].is<bool>()) {
+        frame.hasReal = document["hasReal"].as<bool>();
+    }
+    if (document["runState"].is<int>()) {
+        frame.runState = document["runState"].as<int>();
+    }
+    if (JsonVariantConst planTime = document["planTime"]; planTime.is<const char*>()) {
+        frame.planTime = std::string(planTime.as<const char*>());
+    }
+    return true;
+}
+
 bool parseTflDirectionsJson(
     const char* json,
     const std::string& route,

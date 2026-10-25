@@ -15,8 +15,24 @@ class HardwareArchitectureTests(unittest.TestCase):
         ini = read_text("platformio.ini")
         self.assertIn("TRANSITINK_BOARD_ZECTRIX_NOTE4", selector)
         self.assertIn("hardware/boards/ZectrixNote4.h", selector)
+        self.assertIn("TRANSITINK_BOARD_AZSMZ_EPAPER_29", selector)
+        self.assertIn("hardware/boards/AzsmzEpaper29.h", selector)
         self.assertIn('#error "No TransitInk board profile selected.', selector)
         self.assertIn("-DTRANSITINK_BOARD_ZECTRIX_NOTE4=1", ini)
+        self.assertIn("-DTRANSITINK_BOARD_AZSMZ_EPAPER_29=1", ini)
+
+    def test_azsmz_epaper_29_board_profile_selects_uc8151_driver(self):
+        selector = read_text("include/hardware/BoardProfile.h")
+        board = read_text("include/hardware/boards/AzsmzEpaper29.h")
+        driver_kind = read_text("include/hardware/BoardProfileTypes.h")
+        selected = read_text("include/hardware/SelectedDisplayDriver.h")
+        self.assertIn("TRANSITINK_BOARD_AZSMZ_EPAPER_29", selector)
+        self.assertIn("inline constexpr BoardProfile kBoardProfileAzsmzEpaper29", board)
+        self.assertIn("DisplayDriverKind::Uc8151", board)
+        self.assertIn("    Uc8151,", driver_kind)
+        self.assertIn("DisplayDriverFor<DisplayDriverKind::Uc8151>", selected)
+        self.assertIn("Uc8151DisplayDriver", selected)
+        self.assertIn("DisplayDriverFor<DisplayDriverKind::Ssd1683>", selected)
 
     def test_product_config_is_separate_from_hardware_profile(self):
         product = read_text("include/ProductConfig.h")

@@ -174,11 +174,12 @@ class ProjectStructureTests(unittest.TestCase):
             "KmbClient kmbClient;",
             "CitybusClient citybusClient;",
             "TflClient tflClient;",
+            "MyBusClient myBusClient;",
             "GmbClient gmbClient;",
             "MtrClient mtrClient;",
             "LightRailClient lightRailClient;",
             "JourneyTimeClient journeyTimeClient;",
-            "BusProvider busProvider(kmbClient, citybusClient, tflClient);",
+            "BusProvider busProvider(kmbClient, citybusClient, tflClient, myBusClient);",
             "GmbProvider gmbProvider(gmbClient);",
             "MtrProvider mtrProvider(mtrClient);",
             "LightRailProvider lightRailProvider(lightRailClient);",
@@ -450,16 +451,22 @@ class ProjectStructureTests(unittest.TestCase):
         self.assertNotIn("EtaController", header)
         self.assertNotIn("TRANSITINK_LEGACY_COMPAT", header)
 
-        self.assertIn("constexpr DisplayRegion kStatusRegion{0, 0, EINK_WIDTH, 42};", display)
+        self.assertIn(
+            "constexpr DisplayRegion kStatusRegion{0, 0, EINK_WIDTH, kCompactPanel ? 16 : 42};",
+            display,
+        )
         self.assertIn("constexpr DisplayRegion kLaneRegions[transitink::kWidgetsPerPage]", display)
         for rectangle in (
-            "{0, 42, EINK_WIDTH, 57}",
-            "{0, 99, EINK_WIDTH, 57}",
-            "{0, 156, EINK_WIDTH, 57}",
-            "{0, 213, EINK_WIDTH, 57}",
+            "{0, kFirstLaneY, EINK_WIDTH, kCompactPanel ? 26 : 57},",
+            "{0, kFirstLaneY + (kCompactPanel ? 26 : 57), EINK_WIDTH, kCompactPanel ? 26 : 57},",
+            "{0, kFirstLaneY + 2 * (kCompactPanel ? 26 : 57), EINK_WIDTH, kCompactPanel ? 26 : 57},",
+            "{0, kFirstLaneY + 3 * (kCompactPanel ? 26 : 57), EINK_WIDTH, kCompactPanel ? 26 : 57},",
         ):
             self.assertIn(rectangle, display)
-        self.assertIn("constexpr DisplayRegion kFooterRegion{0, 270, EINK_WIDTH, 30};", display)
+        self.assertIn(
+            "constexpr DisplayRegion kFooterRegion{0, kFirstLaneY + 4 * (kCompactPanel ? 26 : 57), EINK_WIDTH,",
+            display,
+        )
         self.assertIn("kLaneRegions[slot]", display)
         self.assertIn("static_assert(transitink::kWidgetsPerPage == 4", display)
         self.assertIn("constexpr bool regionFitsPanel(const DisplayRegion& region)", display)
@@ -472,7 +479,7 @@ class ProjectStructureTests(unittest.TestCase):
             "region.y + region.h <= EINK_HEIGHT",
         ):
             self.assertIn(bound, display)
-        self.assertEqual(display.count("static_assert(regionFitsPanel("), 6)
+        self.assertEqual(display.count("static_assert(regionFitsPanel("), 5)
 
         dashboard = cpp_function_body(display, "void EInkDisplay::showDashboard(")
         assert_fragments_in_order(
@@ -552,7 +559,7 @@ class ProjectStructureTests(unittest.TestCase):
         self.assertIn("transitink::weekdayText(tmInfo.tm_wday)", display)
         self.assertIn("WeekdaySunday", read_text("include/core/UiText.h"))
         self.assertIn("String currentClockText()", display)
-        self.assertIn("drawText(12, 24, currentClockText())", display)
+        self.assertIn("drawText(12, clockY, currentClockText())", display)
         self.assertIn("panel.showPartialRegion(frameBuffer, previousFrameBuffer, x, y, w, h)", display)
         self.assertIn("copyPartialRegionToPrevious(x, y, w, h)", display)
         self.assertIn("previousFrameValid", display)
@@ -678,11 +685,14 @@ class ProjectStructureTests(unittest.TestCase):
         self.assertIn("einkDisplay.refreshClock(currentDisplaySnapshots(), weatherSnapshot);", main)
         self.assertIn("scheduleNextClockRefresh();", main)
         self.assertNotIn("EtaController", header)
-        self.assertIn("constexpr DisplayRegion kStatusRegion{0, 0, EINK_WIDTH, 42};", display)
+        self.assertIn(
+            "constexpr DisplayRegion kStatusRegion{0, 0, EINK_WIDTH, kCompactPanel ? 16 : 42};",
+            display,
+        )
         self.assertIn("clearRegion(kStatusRegion);", display)
         self.assertIn("drawClockAndStatusBar(uint8_t pageIndex", display)
         self.assertIn("partialRefresh(kStatusRegion.x, kStatusRegion.y, kStatusRegion.w, kStatusRegion.h)", display)
-        self.assertRegex(display, r"drawClockAndStatusBar\(uint8_t pageIndex[\s\S]*drawStatusBar\(\);[\s\S]*drawText\(12, 24, currentClockText\(\)\);")
+        self.assertRegex(display, r"drawClockAndStatusBar\(uint8_t pageIndex[\s\S]*drawStatusBar\(\);[\s\S]*drawText\(12, clockY, currentClockText\(\)\);")
         self.assertNotIn("showEta", main)
         self.assertRegex(main, r"loop\(\)[\s\S]*serviceOneWidgetIfDue\(\);")
         self.assertRegex(main, r"loop\(\)[\s\S]*millis\(\) >= nextClockRefreshMs[\s\S]*refreshClockNow\(\);")
@@ -890,7 +900,7 @@ class ProjectStructureTests(unittest.TestCase):
         display = read_text("src/EInkDisplay.cpp")
         self.assertIn("drawWeatherFooter", display)
         self.assertIn("weatherDisplayText(weather)", display)
-        self.assertIn("drawTruncatedText(12, 291, weatherDisplayText(weather), 376)", display)
+        self.assertIn("const int footerY = kFooterRegion.h > 0 ? 291 : (kFooterRegion.y + 6);", display)
         footer = cpp_function_body(display, "void drawWeatherFooter(")
         self.assertNotIn("同步", footer)
         self.assertNotIn("fetchedAtEpoch", footer)

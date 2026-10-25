@@ -6,6 +6,7 @@
 #include "core/CatalogCore.h"
 #include "core/StaticCatalogCore.h"
 #include "core/WidgetCore.h"
+#include "core/MyBusEtaCore.h"
 
 namespace transitink {
 
@@ -43,6 +44,12 @@ bool parseKmbEtaJson(const char* json,
                      const transitink::BusWidgetConfig& config,
                      std::vector<transitink::BusEtaRecord>& records,
                      std::string& error);
+
+// 掌上公交 CMD=104 回應 → mybus::RealtimeFrame。
+// status 必須為 1；空 body 拒簽分支由客戶端在 HTTP 層先行處理。
+bool parseMyBusRealtimeJson(const char* json,
+                            mybus::RealtimeFrame& frame,
+                            std::string& error);
 
 bool parseTflDirectionsJson(
     const char* json,

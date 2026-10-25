@@ -8,6 +8,7 @@ constexpr int kUnusedPin = -1;
 
 enum class DisplayDriverKind : uint8_t {
     Ssd1683,
+    Uc8151,
 };
 
 enum class PinBias : uint8_t {

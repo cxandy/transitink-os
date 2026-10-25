@@ -20,7 +20,7 @@ constexpr std::size_t kMaxConfigLabelBytes = 96;
 static_assert(kWidgetSlotCount <= 255, "widget slot ids must fit in uint8_t");
 
 enum class WidgetType : uint8_t { Disabled, BusEta, GmbEta, MtrEta, JourneyTime };
-enum class BusOperator : uint8_t { Kmb, LongWin, Citybus, Tfl };
+enum class BusOperator : uint8_t { Kmb, LongWin, Citybus, Tfl, MyBus };
 enum class RailMode : uint8_t { HeavyRail, LightRail, LondonRail };
 
 struct BusWidgetConfig {

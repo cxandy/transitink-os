@@ -114,13 +114,14 @@ void assertInvalid(const ProviderResult& result, uint8_t slot, WidgetType type) 
 }  // namespace
 
 BusProvider::BusProvider(KmbClient& kmb, CitybusClient& citybus,
-                         TflClient& tfl)
-    : kmb_(kmb), citybus_(citybus), tfl_(tfl) {}
+                         TflClient& tfl, MyBusClient& mybus)
+    : kmb_(kmb), citybus_(citybus), tfl_(tfl), mybus_(mybus) {}
 
 ProviderResult BusProvider::fetch(uint8_t slot, const WidgetConfig& config, int64_t nowEpoch) {
     (void)kmb_;
     (void)citybus_;
     (void)tfl_;
+    (void)mybus_;
     calls.push_back({ProviderKind::Bus, slot, &config, nowEpoch});
     return markerResult(ProviderKind::Bus, slot, config.type, nowEpoch);
 }
@@ -174,11 +175,12 @@ int main() {
     KmbClient kmb;
     CitybusClient citybus;
     TflClient tfl;
+    MyBusClient mybus;
     GmbClient gmbClient;
     MtrClient mtrClient;
     LightRailClient lightRailClient;
     JourneyTimeClient journeyClient;
-    BusProvider bus(kmb, citybus, tfl);
+    BusProvider bus(kmb, citybus, tfl, mybus);
     GmbProvider gmb(gmbClient);
     MtrProvider mtr(mtrClient);
     LightRailProvider lightRail(lightRailClient);
